@@ -1,37 +1,78 @@
-const usersGet = (req, res) => {
+const User = require('../models/user')
+const bcryptjs = require('bcryptjs');
 
-    const {apellido} = req.query
+const usersGet = async(req, res) => {
+
+    const { limit = 5, from = 0} = req.query; 
+    /*const users = await User.find({state: true})
+        .skip(Number(from))
+        .limit(Number(limit));
+
+    const total = await User.countDocuments({state: true});   */
+    
+    const [total, users] = await Promise.all([
+
+        User.countDocuments({state: true}),
+        User.find({state: true})
+            .skip(Number(from))
+            .limit(Number(limit))   
+
+    ]);
 
     res.json({
-        msg: 'Hello World',
-        apellido
+        total,
+        users
     });
 }
 
-const usersPost = (req, res) => {
+const usersPost = async(req, res) => {
 
-    const { nombre, edad } = req.body;
+    const { name, email, password, role } = req.body;
+    const user = new User({ name, email, password, role });
+
+    //Encriptar la contraseña
+    const salt = bcryptjs.genSaltSync();
+    user.password = bcryptjs.hashSync( password, salt);
+
+    //Guardad en base de datos
+    await user.save();
 
     res.json({
         msg: 'usersPost',
-        nombre,
-        edad,
+        user
     });
 }
 
-const usersPut = (req, res) => {
+const usersPut = async(req, res) => {
     
     const {id} = req.params
+    const { _id, password, google, email, ...rest } = req.body
+
+    if(password){
+        const salt = bcryptjs.genSaltSync();
+        rest.password = bcryptjs.hashSync( password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(id, rest, { new: true });
+
 
     res.json({
         msg: 'usersPut',
-        id
+        user
     });
 }
 
-const usersDelete = (req, res) => {
+const usersDelete = async(req, res) => {
+
+    const { id } = req.params;
+
+    //Borrar usuario fisicamente
+    // const user = await User.findByIdAndDelete(id);
+
+    const user = await User.findByIdAndUpdate(id, { state: false }, { new: true });
+
     res.json({
-        msg: 'usersDelete'
+        user
     });
 }
 
